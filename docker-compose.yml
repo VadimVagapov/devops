@@ -1,0 +1,55 @@
+version: "1"
+services:
+  db:    
+   build:
+     context: ../database
+     dockerfile: 'Dockerfile_db'
+   networks:
+     - backend   
+   image: cinema_base_dump
+   container_name: cinema_base_dump
+   environment:
+     POSTGRES_DB: postgres
+     POSTGRES_USER: "postgres"
+     POSTGRES_PASSWORD: "root"
+   volumes:
+     - ../database/clone.sh:/docker-entrypoint-initdb.d/clone.sh
+   ports:
+     - "5444:5432"
+  config-server:
+   build:
+     context: ../config-server
+     dockerfile: 'Dockerfile_config_service'
+   networks:
+     - backend  
+   image: config_service
+   container_name: config_service
+   restart: 'always'
+   ports:
+     - '8111:8111'
+   depends_on:
+     - 'db'
+  eureka-server:
+   build:
+     context: ../eureka-server
+     dockerfile: 'Dockerfile_eureka_server'
+   networks:
+     - backend  
+   image: eureka-server
+   container_name: eureka-server
+   restart: 'always'
+   ports:
+     - '8761:8761'
+   environment: 
+      WAIT_HOSTS: config-server:8111
+      CONFIGSERVER_URI: 'http://config-server:8111'
+      CONFIGSERVER_PORT: '8111'
+   depends_on:
+     - 'config-server'
+
+networks:
+  backend:
+    # Specify driver options
+    driver: bridge
+    driver_opts:
+      com.docker.network.bridge.host_binding_ipv4: "127.0.0.1"
